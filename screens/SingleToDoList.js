@@ -3,34 +3,33 @@ import { View, Text, TextInput, Button, StyleSheet } from 'react-native';
 import * as SQLite from 'expo-sqlite';
 
 const SingleToDoList = ({ route, navigation }) => {
-  const { noteId, updateNoteInList  } = route.params;
-  const [note, setNote] = useState(null);
+  const { taskId } = route.params;
+  const [task, setTask] = useState(null);
   const [db, setDb] = useState(null);
-  const [noteInput, setNoteInput] = useState('');
+  const [taskInput, setTaskInput] = useState('');
 
   useEffect(() => {
-    const fetchNote = async () => {
-      const database = await SQLite.openDatabaseAsync('notes.db');
+    const fetchTask = async () => {
+      const database = await SQLite.openDatabaseAsync('tasks.db');
       setDb(database);
-      
-      const fetchedNote = await database.getFirstAsync('SELECT * FROM notes WHERE id = ?;', [noteId]);
-      setNote(fetchedNote);
-      setNoteInput(fetchedNote.value);
+
+      const fetchedTask = await database.getFirstAsync('SELECT * FROM tasks WHERE id = ?;', [taskId]);
+      setTask(fetchedTask);
+      setTaskInput(fetchedTask.title);
+      console.log(task)
     };
 
-    fetchNote();
-  }, [noteId]);
+    fetchTask();
+  }, [taskId]);
 
-  const updateNote = async () => {
-    if (!db || noteInput.trim() === '') return;
-    
+  const updateTask = async () => {
+    if (!db || taskInput.trim() === '') return;
+
     try {
-      await db.runAsync('UPDATE notes SET value = ? WHERE id = ?;', [noteInput, noteId]);
-      navigation.goBack({
-        updatedNote: { id: noteId, value: noteInput },
-      }); // Go back after update
+      await db.runAsync('UPDATE tasks SET title = ? WHERE id = ?;', [taskInput, taskId]);
+      navigation.goBack();
     } catch (error) {
-      console.error('Error updating note: ', error);
+      console.error('Error updating task: ', error);
     }
   };
 
@@ -39,23 +38,21 @@ const SingleToDoList = ({ route, navigation }) => {
       <Text style={styles.title}>Edit Task</Text>
       <TextInput
         style={styles.input}
-        value={noteInput}
-        onChangeText={setNoteInput}
+        value={taskInput}
+        onChangeText={setTaskInput}
       />
-      <Button title="Update Task" onPress={updateNote} />
+      <Button title="Update Task" onPress={updateTask} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     padding: 20,
     backgroundColor: '#fff',
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
     marginBottom: 10,
   },
   input: {
