@@ -5,6 +5,7 @@ import * as SQLite from 'expo-sqlite';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import RNPickerSelect from 'react-native-picker-select';
+import dataService from '../data';
 
 
 
@@ -25,8 +26,9 @@ const initializeDatabase = async (setDb, fetchTasks) => {
         end_time TEXT,
         priority TEXT, 
         status TEXT, 
-        reminder TEXT, 
+        reminder INTEGER, 
         category TEXT, 
+        time_spent INTEGER DEFAULT 0,
         created_at TEXT DEFAULT (datetime('now')), 
         updated_at TEXT DEFAULT (datetime('now'))
       );
@@ -173,6 +175,12 @@ const ToDoList = () => {
     { label: 'Personal', value: 'Personal', color: '#1e90ff' },
   ];
 
+  const handleDelete = async (id) => {
+    await dataService.deleteTask(id);
+    const updatedTasks = await dataService.fetchTasks();
+    setTasks(updatedTasks);
+  };
+
   return (
     <View style={styles.container}>
 
@@ -293,7 +301,6 @@ const ToDoList = () => {
             }}
           />
 
-
           <Button title="Add Task" onPress={addTask} />
           <Button title="Cancel" onPress={cancelTask} color="red" />
         </View>
@@ -340,6 +347,7 @@ const ToDoList = () => {
 
               {/* Category */}
               <Text style={styles.category}>Category: {item.category}</Text>
+              <Button title="Delete" onPress={() => handleDelete(item.id)} color="#d48e8e" />
             </View>
           </TouchableOpacity>
         )}
