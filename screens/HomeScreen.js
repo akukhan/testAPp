@@ -1,270 +1,171 @@
-// // screens/HomeScreen.js
-// import React, { useEffect, useState } from 'react';
-// import { View, Text, FlatList, Button, StyleSheet } from 'react-native';
-// import * as SQLite from 'expo-sqlite';
 
-// // Open the database
-// const db = SQLite.openDatabaseSync('notes.db');
-// console.log(db)
+import React, { useEffect, useState , useCallback } from 'react';
+import { View, Text, Button, StyleSheet, FlatList, TouchableOpacity, ScrollView, SafeAreaView } from 'react-native';
 
-// export default function HomeScreen({ navigation }) {
-  
-//   return (
-//     <View style={styles.container}>
-//       <FlatList
-//         data={notes}
-//         keyExtractor={(item) => item.id.toString()}
-//         renderItem={({ item }) => (
-//           <View style={styles.note}>
-//             <Text style={styles.title}>{item.title}</Text>
-//             <Text>{item.content}</Text>
-//             <Button title="Delete" onPress={() => deleteNote(item.id)} />
-//           </View>
-//         )}
-//       />
-//       <Button title="Add Note" onPress={() => navigation.navigate('AddNote')} />
-//     </View>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     padding: 20,
-//   },
-//   note: {
-//     padding: 10,
-//     borderBottomWidth: 1,
-//     borderBottomColor: '#ccc',
-//     marginBottom: 10,
-//   },
-//   title: {
-//     fontSize: 18,
-//     fontWeight: 'bold',
-//   },
-// });
-
-
-// import React, { useEffect, useState } from 'react';
-// import { View, Text, Button, FlatList, StyleSheet, TextInput } from 'react-native';
-// import * as SQLite from 'expo-sqlite';
-// import { format } from 'date-fns';
-
-// // Open or create the SQLite database
-// const initializeDatabase = async (setDb, fetchNotes) => {
-//   try {
-//     const database = await SQLite.openDatabaseAsync('notes.db');
-//     setDb(database);
-
-//     await database.execAsync(`
-//       PRAGMA journal_mode = WAL;
-//       CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY AUTOINCREMENT, value TEXT NOT NULL);
-//     `);
-
-//     await fetchNotes(database);
-//   } catch (error) {
-//     console.error('Error initializing database: ', error);
-//   }
-// };
-
-// const HomeScreen = () => {
-//   const [notes, setNotes] = useState([]);
-//   const [db, setDb] = useState(null);
-//   const [noteInput, setNoteInput] = useState('');
-//   const currentDate = format(new Date(), 'EEEE, MMMM do, yyyy');
-
-//   useEffect(() => {
-//     initializeDatabase(setDb, fetchNotes);
-//   }, []);
-
-//   const fetchNotes = async (database) => {
-//     if (!database) {
-//       console.error('Database not initialized.');
-//       return;
-//     }
-
-//     try {
-//       const allRows = await database.getAllAsync('SELECT * FROM notes;');
-//       setNotes(allRows);
-//     } catch (error) {
-//       console.error('Error fetching notes: ', error);
-//     }
-//   };
-
-//   const addNote = async () => {
-//     if (!db) {
-//       console.error('Database not initialized.');
-//       return;
-//     }
-
-//     if (noteInput.trim() === '') {
-//       console.error('Note cannot be empty.');
-//       return;
-//     }
-
-//     try {
-//       await db.runAsync('INSERT INTO notes (value) VALUES (?);', [noteInput]);
-//       setNoteInput('');
-//       await fetchNotes(db);
-//     } catch (error) {
-//       console.error('Error adding note: ', error);
-//     }
-//   };
-
-//   return (
-//     <View style={styles.container}>
-//       <Text style={styles.date}>{currentDate}</Text>
-//       <Text style={styles.title}>Notes</Text>
-
-//       <TextInput
-//         style={styles.input}
-//         placeholder="Type your note here..."
-//         value={noteInput}
-//         onChangeText={setNoteInput}
-//       />
-//       <Button title="Add Note" onPress={addNote} />
-
-//       <FlatList
-//         data={notes}
-//         keyExtractor={(item) => item.id.toString()}
-//         renderItem={({ item }) => <Text style={styles.note}>{item.value}</Text>}
-//       />
-//     </View>
-//   );
-// };
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     padding: 20,
-//     backgroundColor: '#fff',
-//   },
-//   date: {
-//     fontSize: 18,
-//     fontWeight: 'bold',
-//     marginBottom: 10,
-//   },
-//   title: {
-//     fontSize: 24,
-//     fontWeight: 'bold',
-//     marginBottom: 10,
-//   },
-//   input: {
-//     height: 40,
-//     borderColor: 'gray',
-//     borderWidth: 1,
-//     marginBottom: 10,
-//     paddingLeft: 8,
-//     borderRadius: 5,
-//   },
-//   note: {
-//     fontSize: 18,
-//     marginVertical: 5,
-//   },
-// });
-
-// export default HomeScreen;
-
-
-import React, { useEffect, useState } from 'react';
-import { View, Text, Button, StyleSheet } from 'react-native';
-
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect  } from '@react-navigation/native';
 import { format, startOfWeek, addDays } from 'date-fns';
+import PomodoroTimer from './PomodoroTimer';
+import dataService from '../data';
 
 const HomeScreen = () => {
+  const [selectedTask, setSelectedTask] = useState(null);
   const [totalTasks, setTotalTasks] = useState(0);
   const [completedTasks, setCompletedTasks] = useState(0);
+  const [tasks, setTasks] = useState([]);
   const navigation = useNavigation();
   const currentDate = format(new Date(), 'EEEE, MMMM do, yyyy');
 
+  const fetchData = async () => {
+    await dataService.initializeDatabase();
+    const fetchedTasks = await dataService.fetchTasks();
+    setTasks(fetchedTasks);
+    setTotalTasks(fetchedTasks.length);
+
+    // Count completed tasks
+    const completed = fetchedTasks.filter((task) => task.status === 'Completed').length;
+    setCompletedTasks(completed);
+  };
+
   useEffect(() => {
-    // Fetch stats, these can come from a real API or DB call
-    setTotalTasks(10); // Example: Replace with actual logic to count total tasks
-    setCompletedTasks(4); // Example: Replace with actual logic for completed tasks
+    fetchData();
   }, []);
 
-   // Get the start of the week (Monday) and format the days and dates
-   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-   const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => {
-     const date = format(addDays(weekStart, index), 'MMM do');
-     return { day, date };
-   });
+  useFocusEffect(
+    useCallback(() => {
+      // fetchData();
+      const interval = setInterval(() => {
+        fetchData(); // Continuously re-fetch data to update task times when switching tabs
+      }, 1000);
+    }, [])
+  );
 
-
+  const formatTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
+  };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView style={styles.scrollView}>
+        <Text style={styles.date}>{currentDate}</Text>
 
-      {/* lets add the date from monda to saturday, in short form, just below the day lets add the date */}
+        <Text style={styles.title}>Task Summary</Text>
 
-      <Text style={styles.date}>{currentDate}</Text>
+        {/* Summary and stats */}
+        <View style={styles.summaryContainer}>
+          <Text>Total Tasks: {totalTasks}</Text>
+          <Text>Completed: {completedTasks}</Text>
+          <Text>Pending: {totalTasks - completedTasks}</Text>
+        </View>
 
-      {/* Display the days (Mon-Sat) and corresponding dates */}
-      <View style={styles.weekContainer}>
-        {weekDays.map((item, index) => (
-          <View key={index} style={styles.dayContainer}>
-            <Text style={styles.weekDay}>{item.day}</Text>
-            <Text style={styles.weekDate}>{item.date}</Text>
-          </View>
-        ))}
+        {/* Navigate to ToDo List */}
+        <Button title="View Todo List" onPress={() => navigation.navigate('ToDoList')} />
+
+        {/* Pomodoro Timer */}
+       
+          <PomodoroTimer 
+          taskId={selectedTask ? selectedTask.id : null}
+          taskTitle={selectedTask ? selectedTask.title : 'No Task Selected'}
+           />
+      
+
+        <Text style={styles.title}>Your Tasks</Text>
+        <FlatList
+          data={tasks}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => (
+            <TouchableOpacity onPress={() => setSelectedTask(item)}>
+              <View style={styles.card}>
+                <Text style={styles.taskTitle}>{item.title}</Text>
+                <Text style={styles.taskDescription}>{item.description}</Text>
+                <Text>Total Time Spent: {formatTime(item.time_spent)}</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+          nestedScrollEnabled
+          scrollEnabled={false}
+        />
+      </ScrollView>
+      <View style={styles.buttonContainer}>
+        <Button title="Clear Selected Task" onPress={() => setSelectedTask(null)} />
       </View>
-
-      <Text style={styles.title}>Task Summary</Text>
-
-      {/* Summary and stats */}
-      <View style={styles.summaryContainer}>
-        <Text>Total Tasks: {totalTasks}</Text>
-        <Text>Completed: {completedTasks}</Text>
-        <Text>Pending: {totalTasks - completedTasks}</Text>
-      </View>
-
-
-      {/* Navigate to ToDo List */}
-      <Button
-        title="View Todo List"
-        onPress={() => navigation.navigate('ToDoList')}
-      />
-    </View>
+    </SafeAreaView>
   );
 };
 
+
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#f8f9fa', // Soft background color
   },
   date: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#888',
+    marginVertical: 10,
+    textAlign: 'center',
   },
-  weekContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
     marginBottom: 15,
   },
-  dayContainer: {
-    alignItems: 'center',
+  summaryContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    padding: 15,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 5,
+    marginBottom: 20,
   },
-  weekDay: {
+  buttonContainer: {
+    padding: 15,
+    backgroundColor: '#f1f1f1',
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
+  },
+  button: {
+    backgroundColor: '#00BFA6',
+    padding: 15,
+    borderRadius: 30,
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  buttonText: {
+    color: '#ffffff',
     fontSize: 16,
+    fontWeight: 'bold',
+  },
+  card: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 15,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  taskTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
   },
-  weekDate: {
+  taskDescription: {
     fontSize: 14,
-    color: '#666',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  summaryContainer: {
-    marginBottom: 20,
+    color: '#777',
+    marginTop: 5,
   },
 });
+
 
 export default HomeScreen;
